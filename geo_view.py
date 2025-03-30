@@ -22,6 +22,7 @@ class GeoTIFFViewer:
         self.image = self.read_geotiff_as_image()
         self.tk_image = ImageTk.PhotoImage(self.image)
         
+        self.zoom_factor = 1.0
         # Top Frame for Coordinates
         self.coord_frame = tk.Frame(root, bg="#2a3439")
         self.coord_frame.pack(fill=tk.X, padx=10, pady=10)
@@ -51,6 +52,9 @@ class GeoTIFFViewer:
 
         # Event bindings
         self.canvas.bind("<Motion>", self.track_mouse)
+        self.canvas.bind("<MouseWheel>", self.zoom)
+        self.canvas.bind("<ButtonPress-1>", self.start_pan)
+        self.canvas.bind("<B1-Motion>", self.pan)
 
 
        # **New Frame Below Image for Input Fields and Button**
@@ -72,8 +76,6 @@ class GeoTIFFViewer:
         # Mark Button
         self.mark_button = tk.Button(self.mark_frame, command=self.mark_location, text="Mark", bg="#4CAF50", fg="white")
         self.mark_button.pack(side=tk.LEFT, padx=10)
-
-
 
     def load_and_display_image(self, image_path, max_size):
         original_image = Image.open(image_path)
@@ -176,8 +178,27 @@ class GeoTIFFViewer:
                                 x_on_canvas + cross_size, y_on_canvas - cross_size, 
                                 fill="red", width=2)
 
+    def zoom(self, event):
+        """Zoom in/out based on mouse wheel scroll."""
+        scale_factor = 1.1 if event.delta > 0 else 0.9
+        self.zoom_factor *= scale_factor
 
+        new_size = (int(self.image.width * self.zoom_factor), int(self.image.height * self.zoom_factor))
+        resized_image = self.image.resize(new_size, Image.Resampling.LANCZOS)
 
+        self.tk_image = ImageTk.PhotoImage(resized_image)
+        self.canvas.itemconfig(self.image_id, image=self.tk_image)
+
+        # Center the image
+        self.update_canvas_size()
+
+    def start_pan(self, event):
+        """Start panning (record initial position)."""
+        self.canvas.scan_mark(event.x, event.y)
+
+    def pan(self, event):
+        """Move the image while dragging."""
+        self.canvas.scan_dragto(event.x, event.y, gain=1)
 
 # Run the application
 if __name__ == "__main__":
